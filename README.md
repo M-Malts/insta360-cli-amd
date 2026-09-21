@@ -24,7 +24,7 @@ from an **Insta360 X5**.
 
 - **Hardware AMF HEVC encoding** — `hevc_amf` on the AMD VCN block
   (`/dev/dri/renderD128`); in batch mode the GPU pipeline is **~3.9x faster
-  than CPU-only x265** (41.1 fps vs 10.5 fps), and ~1.9x on a single file at
+  than CPU-only x265** (41.1 fps vs 10.5 fps), and ~2.4x on a single file at
   ~50 Mbps (see [Benchmark](#benchmark)).
 - **Vulkan GPU blending / FlowState** — GPU-accelerated blending and FlowState
   stitching on AMD Vulkan.

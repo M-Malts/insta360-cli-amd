@@ -316,9 +316,9 @@ def parse_args():
     ap.add_argument(
         "--jobs",
         type=int,
-        default=3,
-        help="number of parallel conversion slots (default: 3; benchmark on an "
-        "8-core/16-thread CPU with RX 7800 XT: jobs=3 gives the best aggregate "
+        default=4,
+        help="number of parallel conversion slots (default: 4; on an "
+        "8-core/16-thread CPU with RX 7800 XT, 3-4 give the best aggregate "
         "fps and GPU/CPU load)",
     )
     ap.add_argument(

@@ -21,7 +21,7 @@ Options (`./convert_tui.py --help`):
 - `--src DIR` — **required**; source directory with `*.insv` / `*.mp4` inputs.
 - `--dst DIR` — **required**; output directory; per-file logs go to
   `<dst>/logs/`.
-- `--jobs N` — number of parallel conversion slots (default `3`). Tune it to
+- `--jobs N` — number of parallel conversion slots (default `4`). Tune it to
   your hardware: on a mid-range 8-core/16-thread CPU with an RX-class GPU,
   `jobs=3` gave the best aggregate throughput and hardware load (45.5 fps,
   ~43% GPU with peaks to 100%), slightly better than `jobs=4` (43.1 fps) or
