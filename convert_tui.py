@@ -603,6 +603,7 @@ def main():
         sys.exit(0)
     total_bytes = sum(os.path.getsize(f) for f in pending)
     done_bytes = sum(os.path.getsize(f) for f in already)
+    grand_total = done_bytes + total_bytes  # fixed: all input bytes for this batch
     jobs = [None] * a.jobs
     queue = list(pending)
     finished = []
@@ -941,7 +942,7 @@ def main():
     for _ in range(min(a.jobs, len(queue))):
         spawn()
     try:
-        while any(jobs) or queue:
+        while any(jobs) or queue or finalizing:
             time.sleep(0.5)
             for i, jb in enumerate(jobs):
                 if jb is None:
@@ -955,6 +956,9 @@ def main():
                     spawn()
                 else:
                     rt_measure(jb)
+            # poll background spatialmedia rewrites (finalizing jobs)
+            for jb in list(finalizing):
+                poll_finalizing(jb)
             # global real-time: input-bytes-equivalent done
             now = time.time()
             equiv = done_bytes
