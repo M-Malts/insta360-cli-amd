@@ -107,6 +107,14 @@ and the repository layout: see [docs/amd-acceleration.md](docs/amd-acceleration.
 Output: `<basename>_stitched.mp4` in `--dst`, per-file log —
 `<dst>/logs/<basename>_stitched.mp4.log`. Already-converted inputs are skipped.
 
+**Output resolution.** By default (`--resolution native`) the tool computes the
+full stitched resolution from the source via ffprobe — dual-fisheye eyes of
+`WxH` become an equirectangular frame of `2WxH` (e.g. `2880x2880` eyes →
+`5760x2880` for an Insta360 X5). If the source cannot be probed, `-output_size`
+is omitted and the SDK falls back to its silent default of **1920x960** — which
+is only ~1/3 of the true native width and not even full HD. Pass an explicit
+`--resolution 3840x1920` (or any `WxH`) to downscale deliberately.
+
 The default stitching type is `optflow` (recommended); `dynamicstitch` is the
 alternative for fast-moving action. The former `aistitch` option was removed
 (it produces artifacts). Full guidance: see

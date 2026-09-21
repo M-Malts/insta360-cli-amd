@@ -8,6 +8,7 @@ output FPS, error panel. Ctrl-C stops everything.
 import argparse
 import glob
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -331,8 +332,9 @@ def parse_args():
     ap.add_argument(
         "--resolution",
         default="native",
-        help="output resolution; default 'native' = no scaling (source native resolution, 1:1); "
-        "examples: 3840x1920, 5760x2880, 3840x2160, 1920x960",
+        help="output resolution; default 'native' = full stitched resolution computed from the "
+        "source (e.g. 5760x2880 for dual 2880x2880 fisheye); pass an explicit value like "
+        "3840x1920 to downscale",
     )
     ap.add_argument(
         "--accessory",
@@ -527,6 +529,95 @@ def probe(path, timeout=20):
         return None, None
 
 
+def probe_eye_resolution(path):
+    """Probe the FIRST video stream's width/height of a source file.
+
+    `path` may be a single .insv/.mp4 file or a directory (first *.insv is
+    used). Returns (w, h) or None if it cannot be determined. Uses ffprobe,
+    falling back to parsing `ffmpeg -i` stderr.
+    """
+    if os.path.isdir(path):
+        cands = sorted(glob.glob(os.path.join(path, "*.insv")) + glob.glob(os.path.join(path, "*.mp4")))
+        if not cands:
+            return None
+        path = cands[0]
+    ffprobe = shutil.which("ffprobe")
+    if ffprobe:
+        try:
+            r = subprocess.run(
+                [
+                    ffprobe,
+                    "-v",
+                    "error",
+                    "-select_streams",
+                    "v:0",
+                    "-show_entries",
+                    "stream=width,height",
+                    "-of",
+                    "default=noprint_wrappers=1",
+                    path,
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                timeout=20,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError):
+            r = None
+        if r is not None:
+            w = h = None
+            for ln in r.stdout.decode("utf-8", "replace").splitlines():
+                if ln.startswith("width="):
+                    try:
+                        w = int(ln.split("=", 1)[1])
+                    except ValueError:
+                        pass
+                elif ln.startswith("height="):
+                    try:
+                        h = int(ln.split("=", 1)[1])
+                    except ValueError:
+                        pass
+            if w and h:
+                return w, h
+    # fallback: parse `ffmpeg -i` stderr for "WxH" of the first video stream
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg:
+        try:
+            r = subprocess.run(
+                [ffmpeg, "-i", path],
+                capture_output=True,
+                timeout=20,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        for ln in r.stderr.decode("utf-8", "replace").splitlines():
+            m = re.search(r"Video:.*?(\d{2,5})x(\d{2,5})", ln)
+            if m:
+                try:
+                    return int(m.group(1)), int(m.group(2))
+                except ValueError:
+                    return None
+    return None
+
+
+def default_output_resolution(src):
+    """Compute the default (full stitched) output resolution for a source.
+
+    Dual-fisheye sources: two WxH eyes stitched into an equirectangular frame
+    of 2W x H (e.g. 2880x2880 eyes -> 5760x2880). Returns "WxH" string or None
+    if the source resolution cannot be determined.
+    """
+    wh = probe_eye_resolution(src)
+    if wh is None:
+        return None
+    w, h = wh
+    if w == h:
+        # square fisheye eye: stitched equirect width = 2x eye width
+        return f"{w * 2}x{h}"
+    return f"{w}x{h}"
+
+
 def main():
     a = parse_args()
     check_enc_ranges(a)
@@ -658,9 +749,20 @@ def main():
             "-stitch_type",
             a.stitch_type,
         ]
-        # native resolution = no scaling: omit -output_size so MediaSDKTest uses
-        # the source's native resolution (1:1). Only pass it when explicit.
-        if a.resolution.lower() != "native":
+        # native = compute the full stitched resolution from the source (dual
+        # fisheye -> 2x eye width). If it can't be determined, omit -output_size
+        # so MediaSDKTest falls back to its own default.
+        if a.resolution.lower() == "native":
+            full = default_output_resolution(jb.src)
+            if full:
+                cmd += ["-output_size", full]
+                with open(jb.logfile, "a") as logf:
+                    logf.write(f"output resolution: {full} (native full-res from source)\n")
+            else:
+                with open(jb.logfile, "a") as logf:
+                    logf.write("WARNING: could not probe source resolution; omitting -output_size "
+                               "(SDK default may downscale to 1920x960)\n")
+        else:
             cmd += ["-output_size", a.resolution]
         if not a.no_flowstate:
             cmd += ["-enable_flowstate"]
@@ -964,7 +1066,7 @@ def main():
                 else:
                     rt_measure(jb)
             # poll background spatialmedia rewrites (finalizing jobs)
-            for jb in list(finalizing):
+            for jb in finalizing[:]:
                 poll_finalizing(jb)
             # global real-time: input-bytes-equivalent done
             now = time.time()
@@ -978,8 +1080,8 @@ def main():
             g_rate = equiv / gwall if gwall > 1e-6 else 0.0
             # gdone_pct and remaining are both in input-bytes terms so they stay
             # consistent: processed = done_bytes + active in_size*pct/100.
-            gdone_pct = equiv / (done_bytes + total_bytes) * 100 if (done_bytes + total_bytes) else 0
-            rem = max(0.0, (done_bytes + total_bytes) - equiv)
+            gdone_pct = equiv / grand_total * 100 if grand_total else 0
+            rem = max(0.0, grand_total - equiv)
             # guard: no meaningful ETA when there is nothing left or no measured rate
             geta = rem / g_rate if g_rate > 1e-6 and rem > 0 else None
             if geta is not None and geta > 24 * 3600:

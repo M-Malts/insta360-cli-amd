@@ -33,9 +33,12 @@ Options (`./convert_tui.py --help`):
   default `h265`).
 - `--stitch-type {optflow,dynamicstitch}` — stitching template
   (default `optflow`). See "Choosing a stitching type" below.
-- `--resolution WxH` — output resolution; default `native` = no scaling (source
-  resolution, 1:1); pass e.g. `3840x1920`, `5760x2880`, `3840x2160`, `1920x960`
-  to scale.
+- `--resolution WxH` — output resolution; default `native` = the full stitched
+  resolution computed from the source via ffprobe (dual-fisheye `WxH` eyes →
+  `2WxH` equirectangular, e.g. `2880x2880` → `5760x2880` for an Insta360 X5).
+  If the source cannot be probed, `-output_size` is omitted and the SDK falls
+  back to its silent default of `1920x960` (~1/3 of true native, not full HD).
+  Pass an explicit value like `3840x1920` to downscale.
 - `--accessory TYPE` — camera accessory / protection type; default `auto` =
   auto-detect from file metadata (maps to `-camera_accessory_type`). Choices and
   int mapping: `auto`(-1), `none`(0), `waterproof`(1), `oner-guard`(2),
