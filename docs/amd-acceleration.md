@@ -12,7 +12,8 @@ Processes Insta360 panoramic videos (`.insv`) through `MediaSDKTest` on
 - a target bitrate of **200 Mbps** (`-bitrate 200000000`), sustained ~204 Mbps.
 
 Result: ~14 s instead of ~21 s (CPU x265), ~130–150 fps encoding, roughly 2x
-the bitrate at high quality (SSIM 0.945 vs x265).
+the bitrate at high quality (SSIM 0.945 vs x265) on a single file; in batch
+mode the GPU pipeline is ~3.9x faster than CPU x265 (41.1 vs 10.5 fps).
 
 The MediaSDK is NVIDIA/CUDA-oriented (NVENC/CUVID). On AMD it cannot use the
 hardware encoder out of the box, so a compatibility layer and `LD_PRELOAD`

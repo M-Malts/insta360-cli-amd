@@ -23,27 +23,30 @@ from an **Insta360 X5**.
 ## Features
 
 - **Hardware AMF HEVC encoding** — `hevc_amf` on the AMD VCN block
-  (`/dev/dri/renderD128`), roughly 1.9x faster than CPU-only x265 at ~50 Mbps
-  (see [Benchmark](#benchmark)).
+  (`/dev/dri/renderD128`); in batch mode the GPU pipeline is **~3.9x faster
+  than CPU-only x265** (41.1 fps vs 10.5 fps), and ~1.9x on a single file at
+  ~50 Mbps (see [Benchmark](#benchmark)).
 - **Vulkan GPU blending / FlowState** — GPU-accelerated blending and FlowState
   stitching on AMD Vulkan.
 - **Automatic camera & protection detection** — camera model is always read from
   the `.insv` metadata; the camera protection (lens-guard) type is auto-detected
   by default (`-camera_accessory_type -1`, kAutoDetect). Override with
   `--accessory`.
+- **Automatic output bitrate** — output bitrate is set by `max(video1, video2)` from insv file.
 - **TUI progress** — per-file progress bar, elapsed/ETA, encoder write rate,
   processing/output FPS, error panel; graceful Ctrl-C.
-- **Tunable encoder & decoder** — rate control mode, quality level,
+- **Tunable encoder** — rate control mode, quality level,
   speed/quality preset and target bitrate are configurable per run
   (`--enc-mode`, `--enc-quality`, `--enc-preset`, `--enc-bitrate`); useful for
   balancing quality, file size and load.
 
 ## Benchmark
 
-GPU/AMF is **~2.4x faster than CPU** and ~35% lighter on CPU load. Measured
-on 4 Insta360 X5 clips (3000 frames each, 3840x1920, 50 Mbps, optical
-flow): GPU batch 41.1 fps vs CPU batch 10.5 fps (3.9x), GPU single 23.3 fps
-vs CPU single 9.65 fps (2.42x).
+In **batch mode** the GPU/AMF pipeline is **~3.9x faster than CPU-only x265**
+(41.1 fps vs 10.5 fps) at roughly the same CPU load (GPU batch 1512.6% vs
+CPU batch ~1600%). On a single file the GPU is ~2.4x faster and ~35% lighter
+on CPU (23.3 fps/931.6% vs 9.65 fps/1441.5%). Measured on 4 Insta360 X5 clips
+(3000 frames each, 3840x1920, 50 Mbps, optical flow).
 
 Parallelism: `--jobs 3` (the default) gave the best aggregate throughput on
 the test machine — 45.5 fps vs 43.1 fps at `jobs=4` and 31.4 fps at `jobs=2`,
@@ -117,7 +120,7 @@ is only ~1/3 of the true native width and not even full HD. Pass an explicit
 
 The default stitching type is `optflow` (recommended); `dynamicstitch` is the
 alternative for fast-moving action. The former `aistitch` option was removed
-(it produces artifacts). Full guidance: see
+(it does not work). Full guidance: see
 [docs/usage.md](docs/usage.md#choosing-a-stitching-type).
 
 The full options reference (all flags, defaults, accessory mapping): see
