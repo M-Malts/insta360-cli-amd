@@ -25,17 +25,18 @@ from an **Insta360 X5**.
 - **Hardware AMF HEVC encoding** — `hevc_amf` on the AMD VCN block
   (`/dev/dri/renderD128`), roughly 1.9x faster than CPU-only x265 at ~50 Mbps
   (see [Benchmark](#benchmark)).
-- **Vulkan GPU blending / FlowState** — works around a MediaSDK Vulkan
-  initialization bug on RADV via the `vkfix16` shim.
+- **Vulkan GPU blending / FlowState** — GPU-accelerated blending and FlowState
+  stitching on AMD Vulkan.
 - **Automatic camera & protection detection** — camera model is always read from
   the `.insv` metadata; the camera protection (lens-guard) type is auto-detected
   by default (`-camera_accessory_type -1`, kAutoDetect). Override with
   `--accessory`.
 - **TUI progress** — per-file progress bar, elapsed/ETA, encoder write rate,
   processing/output FPS, error panel; graceful Ctrl-C.
-- **Tunable AMF encoder** — rate control, quality, filler data, max AU size and
-  HRD conformance are configurable per run via `--amf-*` flags (or `AMF_*` env
-  vars); useful for balancing load and bitrate consistency.
+- **Tunable encoder & decoder** — rate control mode, quality level,
+  speed/quality preset and target bitrate are configurable per run
+  (`--enc-mode`, `--enc-quality`, `--enc-preset`, `--enc-bitrate`); useful for
+  balancing quality, file size and load.
 
 ## Benchmark
 
