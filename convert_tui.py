@@ -476,6 +476,9 @@ class Job:
         self.in_bitrate = None  # max source video-stream bit_rate in bits/s (from ffprobe)
         self.out_fps = None
         self.out_dur = None
+        self.out_res = None  # -output_size used (e.g. "5760x2880") or None for SDK default
+        self.res_native = False  # True when resolution came from 'native' (source-derived)
+        self.res_warn = False  # True when source resolution could not be probed
         self.proc_fps = None
         self.out_prev = 0.0
         self.sample_t = None
@@ -669,6 +672,10 @@ def main():
         human_parts.append(f"quality={a.enc_quality}")
     human_parts.append(f"preset={a.enc_preset}")
     human_str = " ".join(human_parts)
+    full_res = default_output_resolution(a.src)
+    res_disp = a.resolution
+    if a.resolution.lower() == "native" and full_res:
+        res_disp = f"native ({full_res} full-res)"
     print(
         "config: src={} dst={} jobs={} bitrate={} codec={} stitch={} resolution={} "
         "accessory={} flowstate={} directionlock={} spatialmedia={} deps:{}".format(
@@ -678,7 +685,7 @@ def main():
             f"{(a.enc_bitrate if a.enc_bitrate is not None else DEFAULT_BITRATE) // 1000000}M",
             a.codec,
             a.stitch_type,
-            a.resolution,
+            res_disp,
             a.accessory,
             flowstate,
             directionlock,
@@ -751,19 +758,21 @@ def main():
         ]
         # native = compute the full stitched resolution from the source (dual
         # fisheye -> 2x eye width). If it can't be determined, omit -output_size
-        # so MediaSDKTest falls back to its own default.
+        # so MediaSDKTest falls back to its own default. The resolution line is
+        # written to the log later in spawn() (after the log is truncated in "w"
+        # mode) so it is not overwritten by the SDK's output.
         if a.resolution.lower() == "native":
             full = default_output_resolution(jb.src)
+            jb.res_native = True
             if full:
                 cmd += ["-output_size", full]
-                with open(jb.logfile, "a") as logf:
-                    logf.write(f"output resolution: {full} (native full-res from source)\n")
+                jb.out_res = full
             else:
-                with open(jb.logfile, "a") as logf:
-                    logf.write("WARNING: could not probe source resolution; omitting -output_size "
-                               "(SDK default may downscale to 1920x960)\n")
+                jb.out_res = None
+                jb.res_warn = True
         else:
             cmd += ["-output_size", a.resolution]
+            jb.out_res = a.resolution
         if not a.no_flowstate:
             cmd += ["-enable_flowstate"]
             # directionlock is a flowstate modifier; ignored when flowstate is off
@@ -856,6 +865,16 @@ def main():
             pass
         jb.probed = True
         with open(jb.logfile, "w") as logf:
+            # write the effective output resolution right after truncating, so
+            # it is not overwritten by the SDK's stdout/stderr (Popen writes
+            # from offset 0).
+            if jb.out_res and jb.res_native:
+                logf.write(f"output resolution: {jb.out_res} (native full-res from source)\n")
+            elif jb.out_res:
+                logf.write(f"output resolution: {jb.out_res}\n")
+            elif jb.res_warn:
+                logf.write("WARNING: could not probe source resolution; omitting -output_size "
+                           "(SDK default may downscale to 1920x960)\n")
             jb.start = time.time()
             jb.proc = subprocess.Popen(
                 build_cmd(jb), stdout=logf, stderr=subprocess.STDOUT, env=env, start_new_session=True
@@ -1126,12 +1145,13 @@ def main():
                     enc_s = f"enc {int(jb.enc_mbps):>4}/{br_s} Mbps"
                 else:
                     enc_s = f"enc {'':>4}/{br_s} Mbps"
-                enc_s = enc_s.ljust(18)
+                enc_s = enc_s.ljust(14)
                 fps_s = f"out {jb.in_fps:.2f} fps" if jb.in_fps else "out n/a fps"
+                res_s = (f"res {jb.out_res}" if jb.out_res else "res SDK").ljust(12)
                 out.append(
-                    f"slot {slot:>2} {bar(jb.rt_pct)} {short(os.path.basename(jb.src), 28):<28} "
+                    f"slot {slot:>2} {bar(jb.rt_pct)} {short(os.path.basename(jb.src), 20):<20} "
                     f"el {fmt_dur(el)} eta {eta_s:<8} "
-                    f"in {fmt_size(jb.in_size):>8} | {tgt_s} | {enc_s} | proc {pf_s:<9} | {fps_s:<13}"
+                    f"in {fmt_size(jb.in_size):>8} | {tgt_s} | {enc_s} | proc {pf_s:<9} | {fps_s:<13} | {res_s}"
                 )
             out.append("")
             out.append(
@@ -1153,7 +1173,7 @@ def main():
                     outsz = fmt_size(os.path.getsize(jb.out)) if os.path.exists(jb.out) else "0"
                     out.append(
                         f"  {short(os.path.basename(jb.src)):<34} out {of} fps | proc {pf} fps | "
-                        f"wall {fmt_dur(jb.end - jb.start)} | {outsz}"
+                        f"wall {fmt_dur(jb.end - jb.start)} | {jb.out_res or 'SDK'} | {outsz}"
                     )
             if failed:
                 out.append("")
