@@ -91,6 +91,10 @@ That's the whole setup. `./apply_patch.sh` is fully automatic and prints
 status messages; it skips re-extraction if the work is already cached
 under `sdk/work/` and says "Already built" if `patched/` is already correct.
 
+The compatibility layer is a self-contained algorithmic Python patcher
+(`libmedia_adapt.py`) — `apply_patch.sh` extracts the SDK, then applies the
+adaptation and assembles `patched/` automatically.
+
 `apply_patch.sh` modes (`--check`, `--force`), the `SRC` environment override
 and the repository layout: see [docs/amd-acceleration.md](docs/amd-acceleration.md).
 
