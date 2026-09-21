@@ -1,0 +1,17 @@
+libMediaSDK-dev_2.0-0_amd64_ubuntu18.04.deb
+libMediaSDK-dev_2.0-6_amd64_ubuntu18.04.deb
+libMediaSDK-dev-3.1.1.0-20250922_191110-amd64.deb
+MediaSDK-3.1.5-linux-amd64.deb
+**/.DS_Store
+/sdk/
+/sdk/work/
+/patched/
+/shim/*.so
+/output/
+/output/*.log
+__pycache__/
+*.pyc
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/

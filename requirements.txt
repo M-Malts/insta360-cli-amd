@@ -1,0 +1,10 @@
+# Python tooling for this project
+# ---------------------------------
+# The runner (convert_tui.py) is stdlib-only (argparse, collections, glob, os,
+# shutil, signal, subprocess, sys, time) — nothing here is required to run it.
+# This file exists mainly for the OPTIONAL external tools used by features.
+# Constraints are intentionally loose so package updates are supported
+# (no exact-version pins).
+
+# [dev] linting / QA tooling
+ruff>=0.5
