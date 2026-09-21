@@ -6,6 +6,7 @@ per-file progress bar, elapsed/ETA, encoder write rate (Mbps), processing FPS,
 output FPS, error panel. Ctrl-C stops everything.
 """
 import argparse
+import collections
 import glob
 import os
 import re
@@ -716,6 +717,7 @@ def main():
     finalizing = []  # jobs whose spatialmedia rewrite is still in flight
     slot_rates = [6_000_000.0] * a.jobs
     start_all = time.time()
+    rate_win = collections.deque(maxlen=240)  # ~120s window at 0.5s tick
     env = dict(os.environ)
     env["LD_PRELOAD"] = PRELOAD
     env["LD_LIBRARY_PATH"] = tiff_dir
@@ -1094,9 +1096,17 @@ def main():
                 if jb is not None:
                     equiv += jb.in_size * (jb.rt_pct / 100.0)
             gwall = now - start_all
-            # whole-run average throughput (input bytes done per wall-second).
-            # Smooth and never dips to 0 during slot-refill/probe gaps.
-            g_rate = equiv / gwall if gwall > 1e-6 else 0.0
+            # recent-window input rate (slope of equiv over ~120s) so ETA tracks
+            # the CURRENT input speed, not the whole-run average; window long
+            # enough to survive slot-refill/probe gaps without dipping to 0.
+            rate_win.append((now, equiv))
+            g_rate = 0.0
+            if len(rate_win) >= 2:
+                t0, e0 = rate_win[0]
+                t1, e1 = rate_win[-1]
+                dt = t1 - t0
+                if dt > 1e-6 and e1 >= e0:
+                    g_rate = (e1 - e0) / dt
             # gdone_pct and remaining are both in input-bytes terms so they stay
             # consistent: processed = done_bytes + active in_size*pct/100.
             gdone_pct = equiv / grand_total * 100 if grand_total else 0
@@ -1105,14 +1115,11 @@ def main():
             geta = rem / g_rate if g_rate > 1e-6 and rem > 0 else None
             if geta is not None and geta > 24 * 3600:
                 geta = None  # cap absurd ETAs -> render as --:--:--
-            # overall processing fps: active slots + recent finished
+            # overall processing fps: current aggregate of active slots only
             g_fps = 0.0
             for jb in jobs:
                 if jb is not None and jb.rt_fps:
                     g_fps += jb.rt_fps
-            for jb in finished[-8:]:
-                if jb.proc_fps:
-                    g_fps += jb.proc_fps
             out = []
             out.append(
                 C_BOLD
@@ -1162,7 +1169,7 @@ def main():
             )
             out.append(
                 f"       elapsed {fmt_dur(gwall)}   ETA {fmt_dur(geta) if geta is not None else '--:--:--':<8}   "
-                f"rate {fmt_size(g_rate):>10}/s | proc {g_fps:.1f} fps"
+                f"rate {fmt_size(g_rate):>10}/s(in) | proc {g_fps:.1f} fps"
             )
             if finished:
                 out.append("")
@@ -1187,9 +1194,9 @@ def main():
             sys.stdout.flush()
     except KeyboardInterrupt:
         stop_all()
-        print(f"Interrupted by user. done={len(finished)} fail={len(failed)}")
+        print(f"Interrupted by user. done={len(finished) + len(already)}/{len(files)} fail={len(failed)}")
         sys.exit(130)
-    print(f"\nALL DONE. success={len(finished) - len(failed)} failed={len(failed)}")
+    print(f"\nALL DONE. success={len(finished) + len(already) - len(failed)} failed={len(failed)}")
     if failed:
         print("Failed files:")
         for jb in failed:
