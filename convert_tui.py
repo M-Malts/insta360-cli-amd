@@ -312,7 +312,14 @@ def parse_args():
     ap = argparse.ArgumentParser(description="Self-contained Insta360 convert with TUI (merged process.sh)")
     ap.add_argument("--src", default=None, help="source directory with *.insv / *.mp4 inputs (required)")
     ap.add_argument("--dst", default=None, help="output directory; logs go to <dst>/logs/ (required)")
-    ap.add_argument("--jobs", type=int, default=4, help="number of parallel conversion slots (default: 4)")
+    ap.add_argument(
+        "--jobs",
+        type=int,
+        default=3,
+        help="number of parallel conversion slots (default: 3; benchmark on an "
+        "8-core/16-thread CPU with RX 7800 XT: jobs=3 gives the best aggregate "
+        "fps and GPU/CPU load)",
+    )
     ap.add_argument(
         "--stitch-type",
         choices=["optflow", "dynamicstitch"],

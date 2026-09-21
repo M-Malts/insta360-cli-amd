@@ -45,6 +45,10 @@ on 4 Insta360 X5 clips (3000 frames each, 3840x1920, 50 Mbps, optical
 flow): GPU batch 41.1 fps vs CPU batch 10.5 fps (3.9x), GPU single 23.3 fps
 vs CPU single 9.65 fps (2.42x).
 
+Parallelism: `--jobs 3` (the default) gave the best aggregate throughput on
+the test machine — 45.5 fps vs 43.1 fps at `jobs=4` and 31.4 fps at `jobs=2`,
+with ~43% average GPU load (peaks to 100%).
+
 Full 4-mode CPU-vs-GPU/AMF table and parallelism notes:
 see [docs/compatibility.md](docs/compatibility.md#benchmark).
 
@@ -91,7 +95,7 @@ and the repository layout: see [docs/amd-acceleration.md](docs/amd-acceleration.
 
 ```bash
 ./convert_tui.py --src <SRC_DIR> --dst <DST_DIR>                # --src/--dst are required
-./convert_tui.py --src <SRC_DIR> --dst <DST_DIR> --jobs 2
+./convert_tui.py --src <SRC_DIR> --dst <DST_DIR> --jobs 3
 ./convert_tui.py --src <SRC_DIR> --dst <DST_DIR> --bitrate 200000000 --codec h265
 ./convert_tui.py --src <SRC_DIR> --dst <DST_DIR> --stitch-type optflow
 ./convert_tui.py --src <SRC_DIR> --dst <DST_DIR> --codec h264 --resolution 1920x960 --no-flowstate
